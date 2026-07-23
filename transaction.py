@@ -58,5 +58,3 @@ class Transaction:
             f"Transaction(sender={self.sender!r}, nonce={self.nonce}, "
             f"message={self.message!r})"
         )
-
-    
