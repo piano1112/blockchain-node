@@ -141,7 +141,10 @@ class Network:
 
     def _serve(self, srv: socket.socket) -> None:
         while True:
-            conn, _ = srv.accept()
+            try:
+                conn, _ = srv.accept()
+            except OSError:
+                break
             threading.Thread(target=self._handle, args=(conn,), daemon=True).start()
 
     def _handle(self, conn: socket.socket) -> None:
@@ -164,9 +167,9 @@ class Network:
         finally:
             conn.close()
 
-    def _connect(self, peer: str) -> None:
+    def _connect(self, peer: str, max_retries: int = 10) -> None:
         host, port_str = peer.rsplit(":", 1)
-        while True:
+        for attempt in range(max_retries):
             try:
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 sock.connect((host, int(port_str)))
@@ -177,3 +180,6 @@ class Network:
             except OSError:
                 sock.close()
                 time.sleep(_RETRY_DELAY)
+        _dlog(self.port, f"gave up connecting to {peer} after {max_retries} attempts")
+        with self._lock:
+            self._crashed.add(peer)
