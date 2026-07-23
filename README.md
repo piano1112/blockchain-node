@@ -57,22 +57,6 @@ This sets up the virtual environment, installs dependencies, and launches a 3-no
 ./blockchain.sh clean          # Stop nodes, remove venv and logs
 ```
 
-### Manual Usage
-
-To run a single node manually:
-
-```bash
-source venv/bin/activate
-echo "localhost:8001" > nodes.txt
-python3 node.py 8000 nodes.txt
-```
-
-Enable debug logging with:
-
-```bash
-NODE_DEBUG=1 python3 node.py 8000 nodes.txt
-```
-
 ## Web Dashboard
 
 Each node serves a real-time dashboard on its port + 1000. The dashboard displays:

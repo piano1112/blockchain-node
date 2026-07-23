@@ -7,6 +7,5 @@ dist/
 build/
 .venv/
 venv/
-nodes.txt
 logs/
 .pids/
