@@ -28,6 +28,10 @@ class TransactionRequest(BaseModel):
     signature: str
 
 
+class SendRequest(BaseModel):
+    message: str
+
+
 # --- API Endpoints ---
 
 @app.get("/api/blockchain")
@@ -95,6 +99,37 @@ def submit_transaction(tx: TransactionRequest) -> Dict:
     accepted = _node.submit_transaction(payload)
     if accepted:
         return {"status": "accepted"}
+    else:
+        raise HTTPException(400, "Transaction rejected")
+
+
+@app.post("/api/send")
+def send_message(req: SendRequest) -> Dict:
+    """Sign and submit a transaction using this node's key."""
+    if _node is None:
+        raise HTTPException(503, "Node not ready")
+    if not req.message or len(req.message) > 70:
+        raise HTTPException(400, "Message must be 1-70 characters")
+
+    sender = _node.signing_key.verify_key.encode(nacl.encoding.HexEncoder).decode()
+    nonce = _node.mempool._confirmed_nonces.get(sender, 0)
+    # Check if there's already a pending tx with this nonce
+    with _node.mempool._lock:
+        while f"{sender}:{nonce}" in _node.mempool._transactions:
+            nonce += 1
+
+    body = json.dumps({"message": req.message, "nonce": nonce, "sender": sender}, sort_keys=True).encode()
+    signature = _node.signing_key.sign(body).signature.hex()
+
+    payload = {
+        "message": req.message,
+        "nonce": nonce,
+        "sender": sender,
+        "signature": signature,
+    }
+    accepted = _node.submit_transaction(payload)
+    if accepted:
+        return {"status": "accepted", "nonce": nonce, "sender": sender}
     else:
         raise HTTPException(400, "Transaction rejected")
 
@@ -317,27 +352,42 @@ DASHBOARD_HTML = """<!DOCTYPE html>
 
 <div class="grid">
   <div class="card full">
-    <div class="card-title"><span class="dot" style="background:var(--green)"></span>Submit Transaction</div>
+    <div class="card-title"><span class="dot" style="background:var(--green)"></span>Send Transaction</div>
     <div class="tx-form">
-      <div>
-        <label>Sender (hex public key)</label>
-        <input type="text" id="txSender" placeholder="64-char hex">
-      </div>
-      <div>
-        <label>Nonce</label>
-        <input type="number" id="txNonce" value="0" min="0">
-      </div>
       <div class="full-width">
         <label>Message</label>
-        <input type="text" id="txMessage" placeholder="Up to 70 characters" maxlength="70">
+        <input type="text" id="sendMessage" placeholder="Up to 70 characters" maxlength="70">
       </div>
       <div class="full-width">
-        <label>Signature (hex)</label>
-        <input type="text" id="txSignature" placeholder="128-char hex signature">
+        <button onclick="sendTx()">Send</button>
+        <div class="tx-result" id="sendResult"></div>
       </div>
-      <div class="full-width">
-        <button onclick="submitTx()">Submit Transaction</button>
-        <div class="tx-result" id="txResult"></div>
+    </div>
+    <div style="margin-top:16px">
+      <span class="toggle-advanced" onclick="toggleAdvanced()" style="color:var(--text-dim);font-size:0.8rem;cursor:pointer;">▶ Advanced (manual signing)</span>
+      <div id="advancedForm" style="display:none;margin-top:12px;">
+        <div class="tx-form">
+          <div>
+            <label>Sender (hex public key)</label>
+            <input type="text" id="txSender" placeholder="64-char hex">
+          </div>
+          <div>
+            <label>Nonce</label>
+            <input type="number" id="txNonce" value="0" min="0">
+          </div>
+          <div class="full-width">
+            <label>Message</label>
+            <input type="text" id="txMessage" placeholder="Up to 70 characters" maxlength="70">
+          </div>
+          <div class="full-width">
+            <label>Signature (hex)</label>
+            <input type="text" id="txSignature" placeholder="128-char hex signature">
+          </div>
+          <div class="full-width">
+            <button onclick="submitTx()">Submit Raw Transaction</button>
+            <div class="tx-result" id="txResult"></div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -418,6 +468,47 @@ async function refresh() {
     document.getElementById('mempoolContent').innerHTML = html;
   } else {
     document.getElementById('mempoolContent').innerHTML = '<div class="empty">Mempool is empty</div>';
+  }
+}
+
+async function sendTx() {
+  const result = document.getElementById('sendResult');
+  const message = document.getElementById('sendMessage').value;
+  if (!message) {
+    result.className = 'tx-result error';
+    result.textContent = 'Enter a message';
+    return;
+  }
+  try {
+    const res = await fetch(API + '/api/send', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({message}),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      result.className = 'tx-result success';
+      result.textContent = `Accepted (nonce: ${data.nonce})`;
+      document.getElementById('sendMessage').value = '';
+    } else {
+      result.className = 'tx-result error';
+      result.textContent = data.detail || 'Transaction rejected';
+    }
+  } catch (e) {
+    result.className = 'tx-result error';
+    result.textContent = 'Network error: ' + e.message;
+  }
+}
+
+function toggleAdvanced() {
+  const form = document.getElementById('advancedForm');
+  const toggle = document.querySelector('.toggle-advanced');
+  if (form.style.display === 'none') {
+    form.style.display = 'block';
+    toggle.textContent = '▼ Advanced (manual signing)';
+  } else {
+    form.style.display = 'none';
+    toggle.textContent = '▶ Advanced (manual signing)';
   }
 }
 
