@@ -1,6 +1,6 @@
 # Blockchain Node
 
-A peer-to-peer blockchain network simulation in Python. Nodes communicate over TCP, validate transactions using Ed25519 cryptographic signatures, and reach consensus to maintain a shared ledger.
+A peer-to-peer blockchain network simulation in Python. Nodes communicate over TCP, validate transactions using Ed25519 cryptographic signatures, and reach consensus to maintain a shared ledger. Includes a real-time web dashboard for monitoring and interaction.
 
 Built as part of COMP3221 (Distributed Systems) at the University of Sydney.
 
@@ -21,6 +21,8 @@ block.py          → Block data structure, serialisation
 mempool.py        → Transaction pool with nonce tracking and eviction
 transaction.py    → Transaction model, Ed25519 signature verification
 utils.py          → Canonical JSON hashing (SHA-256)
+api.py            → FastAPI web dashboard and REST API
+blockchain.sh     → Lifecycle management script
 ```
 
 ## Getting Started
@@ -28,47 +30,81 @@ utils.py          → Canonical JSON hashing (SHA-256)
 ### Prerequisites
 
 - Python 3.8+
-- [PyNaCl](https://pynacl.readthedocs.io/) (libsodium bindings for Ed25519)
 
-### Installation
+### Quick Start
 
 ```bash
 git clone https://github.com/piano1112/blockchain-node.git
 cd blockchain-node
-pip install -r requirements.txt
+./blockchain.sh setup
+./blockchain.sh start 3
 ```
 
-### Running a Node
+This sets up the virtual environment, installs dependencies, and launches a 3-node network. Each node gets a web dashboard:
 
-Create a `nodes.txt` file listing peer addresses:
+- Node 8000 → http://localhost:9000
+- Node 8001 → http://localhost:9001
+- Node 8002 → http://localhost:9002
 
-```
-localhost:8001
-localhost:8002
-```
-
-Start a node:
+### Lifecycle Management
 
 ```bash
-./Run.sh 8000 nodes.txt
+./blockchain.sh setup          # Create venv and install dependencies
+./blockchain.sh start <N>      # Start N nodes
+./blockchain.sh status         # Show running nodes
+./blockchain.sh logs <port>    # Tail logs for a specific node
+./blockchain.sh stop           # Stop all nodes
+./blockchain.sh clean          # Stop nodes, remove venv and logs
 ```
 
-To run a multi-node network locally, start each node in a separate terminal with a different port. Enable debug logging with:
+### Manual Usage
+
+To run a single node manually:
 
 ```bash
-NODE_DEBUG=1 ./Run.sh 8000 nodes.txt
+source venv/bin/activate
+echo "localhost:8001" > nodes.txt
+python3 node.py 8000 nodes.txt
 ```
+
+Enable debug logging with:
+
+```bash
+NODE_DEBUG=1 python3 node.py 8000 nodes.txt
+```
+
+## Web Dashboard
+
+Each node serves a real-time dashboard on its port + 1000. The dashboard displays:
+
+- **Blockchain state** — block list with hashes, indices, and transaction counts
+- **Mempool** — pending transactions awaiting consensus
+- **Peer status** — connection state of each peer (connected / connecting / crashed)
+- **Transaction submission** — send signed transactions directly from the browser
+
+### REST API
+
+The dashboard also exposes a JSON API:
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/api/node` | GET | Node info (port, chain length, public key) |
+| `/api/blockchain` | GET | Full chain with all blocks |
+| `/api/mempool` | GET | Pending transactions |
+| `/api/peers` | GET | Peer connection status |
+| `/api/transaction` | POST | Submit a signed transaction |
 
 ## Key Design Decisions
 
 - **Lowest-hash consensus**: When multiple valid block proposals exist, nodes deterministically select the block with the lowest SHA-256 hash, ensuring all nodes converge on the same chain without a leader.
 - **Nonce-based ordering**: Each sender's transactions must arrive with sequential nonces (0, 1, 2, ...), preventing replay attacks and ensuring transaction ordering.
 - **Thread-per-peer networking**: Each peer connection runs in its own thread with length-prefixed message framing for reliable delivery.
-- **Graceful idle shutdown**: The consensus loop exits after 5 seconds of inactivity, allowing the process to terminate naturally after a test run.
+- **Automatic peer reconnection**: Crashed peers are periodically retried, allowing nodes to rejoin the network after downtime.
 
 ## Technical Highlights
 
 - **Cryptographic verification**: Transactions are signed with Ed25519 (via PyNaCl/libsodium) and verified before entering the mempool
 - **Thread-safe mempool**: Concurrent access from network handlers and the consensus loop is managed with locks
 - **Canonical hashing**: Block hashes are computed over deterministically serialised JSON for cross-node consistency
-- **Fault tolerance**: Crashed peers are detected via timeouts and excluded from subsequent consensus rounds
+- **Fault tolerance**: Crashed peers are detected via timeouts, excluded from consensus rounds, and automatically reconnected
+- **Real-time monitoring**: FastAPI-powered dashboard with auto-refreshing UI and REST API for programmatic access

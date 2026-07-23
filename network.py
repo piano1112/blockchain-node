@@ -71,6 +71,27 @@ class Network:
         threading.Thread(target=self._serve, args=(srv,), daemon=True).start()
         for peer in self.peers:
             threading.Thread(target=self._connect, args=(peer,), daemon=True).start()
+        threading.Thread(target=self._reconnect_loop, daemon=True).start()
+
+    def _reconnect_loop(self) -> None:
+        """Periodically retry connecting to crashed peers."""
+        while True:
+            time.sleep(5.0)
+            with self._lock:
+                to_retry = list(self._crashed)
+            for peer in to_retry:
+                host, port_str = peer.rsplit(":", 1)
+                try:
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    sock.settimeout(2.0)
+                    sock.connect((host, int(port_str)))
+                    sock.settimeout(None)
+                    with self._lock:
+                        self._crashed.discard(peer)
+                        self._sockets[peer] = sock
+                    _dlog(self.port, f"reconnected to {peer}")
+                except OSError:
+                    sock.close()
 
     def close(self) -> None:
         if self._server_sock:

@@ -12,6 +12,8 @@ import sys
 import threading
 from typing import Dict, Any, List, Optional
 
+import uvicorn
+
 _DEBUG = os.getenv("NODE_DEBUG") == "1"
 
 
@@ -103,7 +105,7 @@ class Node:
 
     def _consensus_loop(self) -> None:
         # Exit after 5 s of no triggered rounds so the process ends naturally.
-        while self._round_trigger.wait(timeout=5.0):
+        while self._round_trigger.wait(timeout=None):
             try:
                 with self._round_lock:
                     self._round_trigger.clear()
@@ -154,8 +156,19 @@ class Node:
             _dlog(self.port, f"commit_block returned False for index={decided.index}")
         return committed
 
+    def _start_web(self) -> None:
+        """Start the FastAPI dashboard on port + 1000."""
+        from api import app, set_node
+        set_node(self)
+        web_port = self.port + 1000
+        _dlog(self.port, f"dashboard at http://localhost:{web_port}")
+        print(f"Dashboard: http://localhost:{web_port}", file=sys.stderr, flush=True)
+        uvicorn.run(app, host="0.0.0.0", port=web_port, log_level="warning")
+
     def run(self) -> None:
         self.network.start()
+        # Start web dashboard
+        threading.Thread(target=self._start_web, daemon=True).start()
         # Daemon so it is killed immediately if the main thread exits early
         # (e.g. SIGTERM / KeyboardInterrupt); join() keeps the process alive
         # until the idle timeout fires naturally.
