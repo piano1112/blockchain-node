@@ -9,3 +9,4 @@ build/
 venv/
 logs/
 .pids/
+.DS_Store
