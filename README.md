@@ -46,7 +46,7 @@ Each node gets a dashboard at `http://localhost:<port + 1000>`.
 
 ## Course Context
 
-Built for COMP3221 (Distributed Systems) at the University of Sydney, 2025. Scored 96/100.
+Built for COMP3221 (Distributed Systems) at the University of Sydney, 2026. Scored 96/100.
 
 ## Transparency
 
