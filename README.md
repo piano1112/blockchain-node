@@ -1,94 +1,58 @@
 # Blockchain Node
 
-A peer-to-peer blockchain network simulation in Python. Nodes communicate over TCP, validate transactions using Ed25519 cryptographic signatures, and reach consensus to maintain a shared ledger. Includes a real-time web dashboard for monitoring and interaction.
+A simplified blockchain network where multiple nodes run locally, exchange transactions, and reach consensus on new blocks.
 
-Built as part of COMP3221 (Distributed Systems) at the University of Sydney.
+![Dashboard Screenshot](screenshot.png)
 
-## How It Works
+## About
 
-Each node runs as a standalone process. When a signed transaction arrives, the node validates it, adds it to its local mempool, and broadcasts it to peers. Periodically, nodes enter a **consensus round**: each proposes a block from its mempool, exchanges proposals with peers over TCP, and all nodes agree on the same block (the one with the lowest hash) to append to the chain.
+Each node maintains its own copy of the blockchain, accepts transactions, proposes blocks, and communicates with peers to reach consensus. The system demonstrates core distributed systems concepts: chain validation, hash-linked blocks, round-based consensus, mempool management, and peer-to-peer broadcasting.
 
-Transactions use **Ed25519 signatures** for authentication — each sender signs their message with a private key, and nodes verify the signature against the sender's public key before accepting the transaction.
+A web dashboard was added separately to visualise each node's chain state, mempool, and connected peers.
+
+## How to Run
+
+```bash
+./blockchain.sh setup          # create venv and install dependencies
+./blockchain.sh start 3        # start 3 nodes (ports 8000, 8001, 8002)
+./blockchain.sh status         # check running nodes
+./blockchain.sh logs 8000      # tail logs for a specific node
+./blockchain.sh stop           # stop all nodes
+```
+
+Each node gets a dashboard at `http://localhost:<port + 1000>`.
 
 ## Architecture
 
-```
-node.py           → Main entry point, consensus loop orchestration
-network.py        → TCP server/client, peer connections, message framing
-consensus.py      → Block proposal, validation, and commit logic
-blockchain.py     → Chain state, genesis block, chain validation
-block.py          → Block data structure, serialisation
-mempool.py        → Transaction pool with nonce tracking and eviction
-transaction.py    → Transaction model, Ed25519 signature verification
-utils.py          → Canonical JSON hashing (SHA-256)
-api.py            → FastAPI web dashboard and REST API
-blockchain.sh     → Lifecycle management script
-```
+| Module | Responsibility |
+|--------|---------------|
+| `blockchain.py` | Chain state, block validation, serialisation |
+| `consensus.py` | Round-based consensus: propose → decide → commit |
+| `block.py` | Block data structure |
+| `transaction.py` | Transaction data structure |
+| `mempool.py` | Pending transaction pool, committed transaction cleanup |
+| `network.py` | Peer-to-peer communication, block/transaction broadcasting |
+| `node.py` | Node orchestration — ties all modules together |
+| `api.py` | Web dashboard and REST endpoints |
+| `utils.py` | Hashing utilities |
 
-## Getting Started
+## Key Concepts Implemented
 
-### Prerequisites
+- **Hash-linked chain** — each block stores the hash of the previous block, forming an immutable sequence
+- **Chain validation** — verifies index continuity, hash linkage, and genesis block consistency across the full chain
+- **Round-based consensus** — nodes propose blocks from their mempool, validate peer proposals, and commit the decided block
+- **Peer discovery** — nodes are configured with peer lists and broadcast transactions and blocks to all connected peers
+- **Genesis block** — deterministic creation ensures all nodes start from the same state
 
-- Python 3.8+
+## Course Context
 
-### Quick Start
+Built for COMP3221 (Distributed Systems) at the University of Sydney, 2025. Scored 96/100.
 
-```bash
-git clone https://github.com/piano1112/blockchain-node.git
-cd blockchain-node
-./blockchain.sh setup
-./blockchain.sh start 3
-```
+## Transparency
 
-This sets up the virtual environment, installs dependencies, and launches a 3-node network. Each node gets a web dashboard:
+This project was built with significant assistance from Claude Code (AI coding tool). The web dashboard (`api.py`) was not part of the original assignment scope — I added it afterward because I wanted users to be able to see what each node is doing. The core distributed systems concepts (consensus rounds, chain validation, peer communication) are what I studied and understood through the course.
 
-- Node 8000 → http://localhost:9000
-- Node 8001 → http://localhost:9001
-- Node 8002 → http://localhost:9002
+## What I'd do differently today
 
-### Lifecycle Management
-
-```bash
-./blockchain.sh setup          # Create venv and install dependencies
-./blockchain.sh start <N>      # Start N nodes
-./blockchain.sh status         # Show running nodes
-./blockchain.sh logs <port>    # Tail logs for a specific node
-./blockchain.sh stop           # Stop all nodes
-./blockchain.sh clean          # Stop nodes, remove venv and logs
-```
-
-## Web Dashboard
-
-Each node serves a real-time dashboard on its port + 1000. The dashboard displays:
-
-- **Blockchain state** — block list with hashes, indices, and transaction counts
-- **Mempool** — pending transactions awaiting consensus
-- **Peer status** — connection state of each peer (connected / connecting / crashed)
-- **Transaction submission** — send signed transactions directly from the browser
-
-### REST API
-
-The dashboard also exposes a JSON API:
-
-| Endpoint | Method | Description |
-|---|---|---|
-| `/api/node` | GET | Node info (port, chain length, public key) |
-| `/api/blockchain` | GET | Full chain with all blocks |
-| `/api/mempool` | GET | Pending transactions |
-| `/api/peers` | GET | Peer connection status |
-| `/api/transaction` | POST | Submit a signed transaction |
-
-## Key Design Decisions
-
-- **Lowest-hash consensus**: When multiple valid block proposals exist, nodes deterministically select the block with the lowest SHA-256 hash, ensuring all nodes converge on the same chain without a leader.
-- **Nonce-based ordering**: Each sender's transactions must arrive with sequential nonces (0, 1, 2, ...), preventing replay attacks and ensuring transaction ordering.
-- **Thread-per-peer networking**: Each peer connection runs in its own thread with length-prefixed message framing for reliable delivery.
-- **Automatic peer reconnection**: Crashed peers are periodically retried, allowing nodes to rejoin the network after downtime.
-
-## Technical Highlights
-
-- **Cryptographic verification**: Transactions are signed with Ed25519 (via PyNaCl/libsodium) and verified before entering the mempool
-- **Thread-safe mempool**: Concurrent access from network handlers and the consensus loop is managed with locks
-- **Canonical hashing**: Block hashes are computed over deterministically serialised JSON for cross-node consistency
-- **Fault tolerance**: Crashed peers are detected via timeouts, excluded from consensus rounds, and automatically reconnected
-- **Real-time monitoring**: FastAPI-powered dashboard with auto-refreshing UI and REST API for programmatic access
+- **Add fault tolerance:** The current consensus assumes all nodes are online and honest. Implementing a Byzantine fault tolerant protocol (like PBFT) would make the system more realistic.
+- **Separate the dashboard:** `api.py` bundles REST endpoints and HTML rendering. Splitting the API layer from the frontend would make each easier to extend independently.
