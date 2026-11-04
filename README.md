@@ -43,6 +43,8 @@ Each node gets a dashboard at `http://localhost:<port + 1000>`.
 - **Round-based consensus** — nodes propose blocks from their mempool, validate peer proposals, and commit the decided block
 - **Peer discovery** — nodes are configured with peer lists and broadcast transactions and blocks to all connected peers
 - **Genesis block** — deterministic creation ensures all nodes start from the same state
+- **Crash detection and reconnection** — a peer that does not respond within 2 seconds during a consensus round is marked as crashed and excluded from that round; the node retries crashed peers every 5 seconds
+- **Signed transactions** — each transaction carries an Ed25519 signature, and only correctly signed transactions with the expected per-sender nonce enter the mempool
 
 ## Course Context
 
@@ -54,5 +56,5 @@ This project was built with significant assistance from Claude Code (AI coding t
 
 ## What I'd do differently today
 
-- **Add fault tolerance:** The current consensus assumes all nodes are online and honest. Implementing a Byzantine fault tolerant protocol (like PBFT) would make the system more realistic.
+- **Handle Byzantine faults:** The node already tolerates crash faults (peers that stop responding), but it still assumes every responding peer is honest. A Byzantine fault tolerant protocol (like PBFT) would also handle peers that send conflicting or malicious proposals.
 - **Separate the dashboard:** `api.py` bundles REST endpoints and HTML rendering. Splitting the API layer from the frontend would make each easier to extend independently.
