@@ -46,6 +46,8 @@ class Node:
 
         self._round_trigger = threading.Event()
         self._round_lock = threading.Lock()
+        # Set when a peer asks us to join a round; we must take part even with an empty mempool.
+        self._peer_requested_round = threading.Event()
         self._current_proposal: Optional[dict] = None
 
         self.network = Network(
@@ -71,11 +73,10 @@ class Node:
             _dlog(self.port, f"values_received index={incoming_index}: round in progress, skipping")
             return
         if incoming_index == self.blockchain.last_block.index + 1:
-            if len(self.mempool) > 0:
-                _dlog(self.port, f"values_received index={incoming_index}: mempool non-empty, triggering round")
-                self._round_trigger.set()
-            else:
-                _dlog(self.port, f"values_received index={incoming_index}: mempool empty, not triggering")
+            # A peer started a round for the next block: join it, proposing an empty block if needed.
+            _dlog(self.port, f"values_received index={incoming_index}: joining round (mempool={len(self.mempool)})")
+            self._peer_requested_round.set()
+            self._round_trigger.set()
 
     def submit_transaction(self, payload: Dict[str, Any]) -> bool:
         try:
@@ -96,7 +97,6 @@ class Node:
         if added:
             _dlog(self.port, f"tx accepted: sender={tx.sender[:8]} nonce={tx.nonce}")
             print(json.dumps({"payload": payload, "type": "transaction"}, indent=2, sort_keys=True), flush=True)
-            self.network.broadcast_transaction(payload)
             self._round_trigger.set()
         else:
             expected = self.mempool._confirmed_nonces.get(tx.sender, 0)
@@ -109,7 +109,9 @@ class Node:
             try:
                 with self._round_lock:
                     self._round_trigger.clear()
-                    if len(self.mempool) == 0:
+                    peer_requested = self._peer_requested_round.is_set()
+                    self._peer_requested_round.clear()
+                    if len(self.mempool) == 0 and not peer_requested:
                         continue
                     _dlog(self.port, f"round starting: chain_len={len(self.blockchain.chain)} mempool={len(self.mempool)}")
                     self._do_round()
