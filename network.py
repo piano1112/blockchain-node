@@ -107,24 +107,6 @@ class Network:
                     pass
             self._sockets.clear()
 
-    def broadcast_transaction(self, tx_dict: dict) -> None:
-        """Forward a validated transaction to all peers via fresh connections."""
-        msg = {"type": "transaction", "payload": tx_dict}
-        for peer in self.peers:
-            threading.Thread(target=self._forward_to_peer, args=(peer, msg), daemon=True).start()
-
-    def _forward_to_peer(self, peer: str, msg: dict) -> None:
-        host, port_str = peer.rsplit(":", 1)
-        try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(1.0)
-            sock.connect((host, int(port_str)))
-            _send_msg(sock, msg)
-            sock.close()
-            _dlog(self.port, f"forwarded tx to {peer}")
-        except Exception as e:
-            _dlog(self.port, f"forward to {peer} failed: {e}")
-
     def exchange_values(self, my_proposal: dict) -> List[dict]:
         """Send proposal to all active peers in parallel and collect their proposals."""
         with self._lock:

@@ -6,7 +6,7 @@ A simplified blockchain network where multiple nodes run locally, exchange trans
 
 ## About
 
-Each node maintains its own copy of the blockchain, accepts transactions, proposes blocks, and communicates with peers to reach consensus. The system demonstrates core distributed systems concepts: chain validation, hash-linked blocks, round-based consensus, mempool management, and peer-to-peer broadcasting.
+Each node maintains its own copy of the blockchain, accepts transactions, proposes blocks, and communicates with peers to reach consensus. The system demonstrates core distributed systems concepts: chain validation, hash-linked blocks, round-based consensus, mempool management, and peer-to-peer proposal exchange.
 
 A web dashboard was added separately to visualise each node's chain state, mempool, and connected peers.
 
@@ -31,7 +31,7 @@ Each node gets a dashboard at `http://localhost:<port + 1000>`.
 | `block.py` | Block data structure |
 | `transaction.py` | Transaction data structure |
 | `mempool.py` | Pending transaction pool, committed transaction cleanup |
-| `network.py` | Peer-to-peer communication, block/transaction broadcasting |
+| `network.py` | Peer-to-peer communication and proposal exchange |
 | `node.py` | Node orchestration — ties all modules together |
 | `api.py` | Web dashboard and REST endpoints |
 | `utils.py` | Hashing utilities |
@@ -41,7 +41,7 @@ Each node gets a dashboard at `http://localhost:<port + 1000>`.
 - **Hash-linked chain** — each block stores the hash of the previous block, forming an immutable sequence
 - **Chain validation** — verifies index continuity, hash linkage, and genesis block consistency across the full chain
 - **Round-based consensus** — nodes propose blocks from their mempool, validate peer proposals, and commit the decided block
-- **Peer discovery** — nodes are configured with peer lists and broadcast transactions and blocks to all connected peers
+- **Peer discovery** — nodes are configured with peer lists and exchange block proposals with all connected peers; a transaction stays in the mempool of the node that received it and reaches the others through that node's block proposal
 - **Genesis block** — deterministic creation ensures all nodes start from the same state
 - **Crash detection and reconnection** — a peer that does not respond within 2 seconds during a consensus round is marked as crashed and excluded from that round; the node retries crashed peers every 5 seconds
 - **Signed transactions** — each transaction carries an Ed25519 signature, and only correctly signed transactions with the expected per-sender nonce enter the mempool
