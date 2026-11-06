@@ -162,15 +162,15 @@ DASHBOARD_HTML = """<!DOCTYPE html>
 <title>Blockchain Node Dashboard</title>
 <style>
   :root {
-    --bg: #0f1117;
-    --surface: #1a1d27;
-    --border: #2a2d3a;
-    --text: #e1e4ed;
-    --text-dim: #8b8fa3;
-    --accent: #6c7ee1;
-    --green: #4ade80;
-    --red: #f87171;
-    --yellow: #fbbf24;
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --border: #e2e4ea;
+    --text: #111111;
+    --text-dim: #5b6070;
+    --accent: #c2410c;
+    --green: #15803d;
+    --red: #b91c1c;
+    --yellow: #b45309;
     --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -253,9 +253,9 @@ DASHBOARD_HTML = """<!DOCTYPE html>
     font-weight: 600;
     font-family: -apple-system, sans-serif;
   }
-  .status-connected { background: #064e3b; color: var(--green); }
-  .status-crashed { background: #451a1a; color: var(--red); }
-  .status-connecting { background: #422006; color: var(--yellow); }
+  .status-connected { background: #dcfce7; color: var(--green); }
+  .status-crashed { background: #fee2e2; color: var(--red); }
+  .status-connecting { background: #fef3c7; color: var(--yellow); }
   .hash { color: var(--accent); }
   .tx-form {
     display: grid;
@@ -302,8 +302,8 @@ DASHBOARD_HTML = """<!DOCTYPE html>
     font-family: var(--mono);
     display: none;
   }
-  .tx-result.success { display: block; background: #064e3b; color: var(--green); }
-  .tx-result.error { display: block; background: #451a1a; color: var(--red); }
+  .tx-result.success { display: block; background: #dcfce7; color: var(--green); }
+  .tx-result.error { display: block; background: #fee2e2; color: var(--red); }
   .empty { color: var(--text-dim); font-style: italic; padding: 16px 0; font-size: 0.85rem; }
   .refresh-info {
     text-align: center;
