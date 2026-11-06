@@ -2,7 +2,7 @@
 
 A simplified blockchain network where multiple nodes run locally, exchange transactions, and reach consensus on new blocks.
 
-![Dashboard Screenshot](screenshot.png)
+![](screenshot.png)
 
 ## About
 
